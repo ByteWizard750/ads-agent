@@ -192,7 +192,8 @@ Return ONLY a valid JSON array of 3 objects with these exact keys:
             response = client.chat.completions.create(
                 model="google/gemini-2.5-flash",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3
+                temperature=0.3,
+                max_tokens=1500
             )
             content = response.choices[0].message.content.strip()
             if content.startswith("```json"):
