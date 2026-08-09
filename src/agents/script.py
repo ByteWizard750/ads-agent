@@ -73,7 +73,7 @@ def generate_script_variants(
             "approval_status": "pending"
         }
     else:
-        # Extract exact fields from first proprietary stat entry (SNOW_2026-04-27.json)
+        # Extract exact fields from proprietary stat entry (SNOW_2026-04-27.json)
         stat = proprietary_stats[0]
         raw = stat.get("raw", stat)
         
@@ -84,12 +84,12 @@ def generate_script_variants(
         stop_1 = raw.get("stop 1", "137.20")
         confidence = raw.get("confidence level", "46")
         
-        hook_b = f"Verified signal data for {ticker}: Proprietary sentiment indicates {direction} entry at ${price} targeting ${target_1}."
+        # Softened historical framing with compliance disclaimer
+        hook_b = f"Here's a real call we made on {ticker}: Early social sentiment flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1}."
         body_b = (
-            f"Verified signal data for {ticker}: Proprietary sentiment indicates {direction} entry at ${price} targeting ${target_1} "
-            f"with stop loss at ${stop_1} and a {confidence}% confidence score weighted across X and Groq sentiment streams. "
-            f"{client_cfg.name} turns raw community sentiment into actionable quantitative trade setups. "
-            f"{cta}."
+            f"Here's a real call we made on {ticker}: Early social sentiment signals flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1} with stop loss at ${stop_1}. "
+            f"{client_cfg.name} tracks early community sentiment shifts to surface momentum setups before major moves happen. "
+            f"{cta}! [DISCLAIMER: Financial ad scripts featuring specific price targets require compliance/legal review before public ad deployment.]"
         )
 
         variant_b = {
@@ -102,13 +102,14 @@ def generate_script_variants(
             "duration_seconds": 45,
             "approval_status": "pending",
             "_field_mapping": {
+                "historical framing": "Explicitly framed as a past historical call ('Here's a real call we made on SNOW')",
+                "confidence level": f"Softened to match source 46% confidence ('modest {confidence}% confidence setup')",
+                "compliance disclaimer": "Added required legal review placeholder",
                 "ticker": f"ticker -> '{ticker}'",
                 "direction": f"direction -> '{direction}'",
                 "current price": f"current price -> '${price}'",
                 "target 1": f"target 1 -> '${target_1}'",
-                "stop 1": f"stop 1 -> '${stop_1}'",
-                "confidence level": f"confidence level -> '{confidence}%'",
-                "sources weights": "sources weights -> x: 30%, groq: 60%, youtube: 10%"
+                "stop 1": f"stop 1 -> '${stop_1}'"
             }
         }
 
@@ -154,7 +155,7 @@ def run_script_agent(client_config_path: str, run_id: str, concepts: List[Dict[s
     """
     Main entry point for Script Agent execution node.
     1. Parses proprietary data from clients/<client_id>/data/.
-    2. Generates 3 script variants (A, B, C) with exact field mappings for Variant B.
+    2. Generates 3 script variants (A, B, C) with exact field mappings and compliance disclaimer for Variant B.
     3. Persists scripts to Supabase `scripts` table with approval_status = 'pending'.
     4. Updates Kanban state: Writing Script -> Awaiting Approval (Human Gate).
     """
