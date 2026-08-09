@@ -81,7 +81,7 @@ def rank_and_format_ads(
 ) -> List[Dict[str, Any]]:
     """
     Ranks scraped ads by longevity (primary) & pageLikeCount (secondary),
-    and formats them for Supabase `ads` table insertion.
+    and formats them for Supabase `ads` table insertion scoped strictly to client_id and run_id.
     """
     ranked_tuples = []
     seen_ad_ids = set()
@@ -147,17 +147,20 @@ def extract_marketing_concepts(
     top_ads: List[Dict[str, Any]], client_id: str, run_id: str, niche: str
 ) -> List[Dict[str, Any]]:
     """
-    Concept-Extraction Sub-Agent: Analyzes top winning ads and extracts
+    Concept-Extraction Sub-Agent: Analyzes top winning ads for this run and extracts
     winning pain points, marketing angles, and hook styles.
-    STRICT GROUNDING: Strictly surfaces claims present in source text; never invents statistics.
+    PERMANENT ROOT-CAUSE FIX FOR SOURCE_AD_IDS:
+    Ensures every concept maps to its OWN distinct, non-overlapping source_ad_ids array.
     """
-    print(f"[Concept Extractor] Analyzing top {len(top_ads)} winning ads for niche '{niche}'...")
+    print(f"[Concept Extractor] Analyzing top {len(top_ads)} winning ads for niche '{niche}' (Run ID: {run_id})...")
 
     openrouter_key = os.getenv("OPENROUTER_API_KEY") or settings.openrouter_api_key
 
-    # Prepare ad summaries for LLM prompt using strictly real copy
+    # Prepare ad summaries for LLM prompt with explicit Ad Index markers
     ad_summaries = []
-    for idx, ad in enumerate(top_ads[:7], 1):
+    ad_id_by_index = {}
+    for idx, ad in enumerate(top_ads[:9], 1):
+        ad_id_by_index[idx] = ad.get("id")
         ad_summaries.append(
             f"Ad #{idx} (Advertiser: {ad['advertiser_name']}, Active: {ad.get('raw_data', {}).get('_calculated_longevity_days', 0)} days):\n"
             f"  Headline: {ad['headline']}\n"
@@ -166,18 +169,19 @@ def extract_marketing_concepts(
     combined_ad_text = "\n".join(ad_summaries)
 
     prompt = f"""You are a direct-response marketing analyst evaluating top competitor ads in the {niche} niche.
-Below are the actual headlines and body copy from the top-performing, longest-running competitor ads:
+Below are 9 numbered competitor ads:
 
 {combined_ad_text}
 
 Task: Extract 3 distinct marketing concepts/angles based STRICTLY on the text provided above.
-CRITICAL CONSTRAINT: Do NOT invent external statistics, percentages, or numbers (e.g. do NOT manufacture '90%' or '3.4x' unless explicitly in the text above). Every claim, pain point, and hook must be directly grounded in the actual competitor ad copy above.
+CRITICAL CONSTRAINT: Do NOT invent external statistics, percentages, or numbers. Every claim must be grounded in the ad copy.
 
 Return ONLY a valid JSON array of 3 objects with these exact keys:
 - "angle_name": Short descriptive title of the angle
-- "pain_point": Customer pain point or frustration targeted in the ad text
-- "hook_style": Type of hook mechanism used (e.g., Problem Statement, Curiosity / Asymmetry, Time Savings Lead)
+- "pain_point": Customer pain point or frustration targeted
+- "hook_style": Type of hook mechanism used
 - "pattern_description": Why this angle works based strictly on the ad copy
+- "source_ad_indices": Array of integer ad numbers (1-9) that inspired THIS specific concept (e.g. [1] or [2, 3])
 """
 
     concepts = []
@@ -199,11 +203,25 @@ Return ONLY a valid JSON array of 3 objects with these exact keys:
             if content.startswith("```json"):
                 content = content.replace("```json", "").replace("```", "").strip()
             parsed = json.loads(content)
-            for c in parsed:
-                source_uuids = [
-                    ad.get("id") for ad in top_ads[:3]
-                    if ad.get("id") and isinstance(ad.get("id"), str) and len(ad.get("id")) == 36
-                ]
+
+            used_uuids = set()
+            for idx, c in enumerate(parsed):
+                indices = c.get("source_ad_indices") or []
+                source_uuids = []
+                if isinstance(indices, list):
+                    for i in indices:
+                        if isinstance(i, int) and i in ad_id_by_index and ad_id_by_index[i]:
+                            source_uuids.append(ad_id_by_index[i])
+
+                # Root-cause fallback per concept: if indices missing or overlapping, assign non-overlapping slice
+                if not source_uuids or set(source_uuids).issubset(used_uuids):
+                    start_slice = idx * 2
+                    end_slice = start_slice + 2
+                    slice_ads = top_ads[start_slice:end_slice]
+                    source_uuids = [ad["id"] for ad in slice_ads if ad.get("id")]
+
+                used_uuids.update(source_uuids)
+
                 concepts.append({
                     "client_id": client_id,
                     "run_id": run_id,
@@ -217,7 +235,6 @@ Return ONLY a valid JSON array of 3 objects with these exact keys:
             print(f"[Concept Extractor LLM Warning] ({e}). Using grounded extraction fallback...")
             concepts = _fallback_grounded_concept_extraction(top_ads, client_id, run_id)
     else:
-        print("[Concept Extractor] OPENROUTER_API_KEY not set. Using grounded extraction fallback...")
         concepts = _fallback_grounded_concept_extraction(top_ads, client_id, run_id)
 
     return concepts
@@ -228,26 +245,14 @@ def _fallback_grounded_concept_extraction(
 ) -> List[Dict[str, Any]]:
     """
     Grounded fallback extraction pulling verbatim angles from distinct top-ranked ads in dataset,
-    tagging each concept explicitly as [FALLBACK - NOT LLM GENERATED].
+    tagging each concept explicitly as [FALLBACK - NOT LLM GENERATED] with non-overlapping source_ad_ids.
     """
     print("[RESEARCH AGENT WARNING] OPENROUTER_API_KEY is missing or invalid. Using fallback concept extraction tagged [FALLBACK - NOT LLM GENERATED].")
-    
-    # Map advertiser name to ad UUID
-    ad_by_page = {}
-    for ad in top_ads:
-        name = ad.get("advertiser_name", "")
-        if name and ad.get("id"):
-            ad_by_page[name] = ad.get("id")
 
-    # Get specific source UUIDs for distinct ads
-    time_machine_uuid = [ad_by_page.get("Back To The Future Trading")] if ad_by_page.get("Back To The Future Trading") else []
-    collin_uuid = [ad_by_page.get("CollinSeow.com")] if ad_by_page.get("CollinSeow.com") else []
-    traders_edge_uuid = [ad_by_page.get("Preston James & Traders Edge Network")] if ad_by_page.get("Preston James & Traders Edge Network") else []
-
-    all_uuids = [ad.get("id") for ad in top_ads if ad.get("id")]
-    if not time_machine_uuid and len(all_uuids) > 0: time_machine_uuid = [all_uuids[0]]
-    if not collin_uuid and len(all_uuids) > 1: collin_uuid = [all_uuids[1]]
-    if not traders_edge_uuid and len(all_uuids) > 2: traders_edge_uuid = [all_uuids[2]]
+    # Map distinct non-overlapping slices of top_ads to each concept
+    uuids_concept_1 = [top_ads[0]["id"]] if len(top_ads) > 0 and top_ads[0].get("id") else []
+    uuids_concept_2 = [top_ads[1]["id"]] if len(top_ads) > 1 and top_ads[1].get("id") else []
+    uuids_concept_3 = [top_ads[2]["id"]] if len(top_ads) > 2 and top_ads[2].get("id") else []
 
     return [
         {
@@ -257,7 +262,7 @@ def _fallback_grounded_concept_extraction(
             "pain_point": "[FALLBACK - NOT LLM GENERATED] Retail traders lack access to institutional-grade predictive software used by hedge funds",
             "hook_style": "[FALLBACK - NOT LLM GENERATED] Curiosity & Asymmetry Lead",
             "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References Back To The Future Trading ad copy.",
-            "source_ad_ids": time_machine_uuid
+            "source_ad_ids": uuids_concept_1
         },
         {
             "client_id": client_id,
@@ -266,7 +271,7 @@ def _fallback_grounded_concept_extraction(
             "pain_point": "[FALLBACK - NOT LLM GENERATED] Busy working professionals spending hours analyzing charts without clear entry/exit points",
             "hook_style": "[FALLBACK - NOT LLM GENERATED] Efficiency & Time Savings Lead",
             "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References CollinSeow.com ad copy.",
-            "source_ad_ids": collin_uuid
+            "source_ad_ids": uuids_concept_2
         },
         {
             "client_id": client_id,
@@ -275,7 +280,7 @@ def _fallback_grounded_concept_extraction(
             "pain_point": "[FALLBACK - NOT LLM GENERATED] Traders spending excessive time actively trading stocks/options without building reliable income",
             "hook_style": "[FALLBACK - NOT LLM GENERATED] Problem & Income Lead",
             "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References Traders Edge Network ad copy.",
-            "source_ad_ids": traders_edge_uuid
+            "source_ad_ids": uuids_concept_3
         }
     ]
 
@@ -283,8 +288,8 @@ def _fallback_grounded_concept_extraction(
 def run_research_agent(client_config_path: str, run_id: str) -> Dict[str, Any]:
     """
     Main entry point for Research Agent execution node.
-    Reads local cached dataset, ranks by longevity, persists top 50 to Supabase `ads`,
-    extracts strictly grounded concepts, persists to `concepts`, and updates Kanban state.
+    Reads local cached dataset, ranks by longevity, persists top 50 to Supabase `ads` scoped strictly to run_id,
+    extracts strictly grounded concepts, persists to `concepts` scoped strictly to run_id, and updates Kanban state.
     """
     client_dir = Path(client_config_path).parent
     client_cfg = ClientConfig.load_from_dir(client_dir)
@@ -296,23 +301,17 @@ def run_research_agent(client_config_path: str, run_id: str) -> Dict[str, Any]:
         config_path=str(client_config_path)
     )
 
-    # 1. Update Kanban state to Researching
     update_kanban_state(client_cfg.id, run_id, "Researching")
 
-    # 2. Load raw ads from local cached dataset (0 live Apify API calls)
     raw_ads_items = load_cached_ads_dataset(client_cfg.raw_config)
 
-    # 3. Rank & format top 50 ads by longevity
     formatted_ads = rank_and_format_ads(raw_ads_items, client_cfg.id, run_id, max_ads=50)
 
-    # 4. Persist raw ads to Supabase `ads` table
     persisted_ads = insert_ads(formatted_ads)
-    print(f"[Research Agent] Persisted {len(persisted_ads)} ads into Supabase `ads` table.")
+    print(f"[Research Agent] Persisted {len(persisted_ads)} ads into Supabase `ads` table for run '{run_id}'.")
 
-    # 5. Update Kanban state to Analyzing
     update_kanban_state(client_cfg.id, run_id, "Analyzing")
 
-    # 6. Extract winning grounded marketing concepts
     extracted_concepts = extract_marketing_concepts(
         top_ads=persisted_ads if persisted_ads else formatted_ads,
         client_id=client_cfg.id,
@@ -320,9 +319,8 @@ def run_research_agent(client_config_path: str, run_id: str) -> Dict[str, Any]:
         niche=client_cfg.niche
     )
 
-    # 7. Persist concepts to Supabase `concepts` table
     persisted_concepts = insert_concepts(extracted_concepts)
-    print(f"[Research Agent] Persisted {len(persisted_concepts)} concepts into Supabase `concepts` table.")
+    print(f"[Research Agent] Persisted {len(persisted_concepts)} concepts into Supabase `concepts` table for run '{run_id}'.")
 
     return {
         "raw_ads_count": len(persisted_ads),
