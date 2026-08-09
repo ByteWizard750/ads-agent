@@ -1,5 +1,6 @@
 import sys
 import uuid
+import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -55,6 +56,21 @@ def main():
         print(f"  • Full Voiceover Script:\n    {script['body_script']}")
         print(f"  • Estimated Duration: {script.get('duration_seconds', 45)}s")
         print(f"  • Approval Status: {script.get('approval_status')}")
+
+    print("\n================ VARIANT B SOURCE JSON FIELD MAPPING ================")
+    source_file = "clients/crowdwisdom/data/SNOW_2026-04-27.json"
+    if Path(source_file).exists():
+        with open(source_file, "r") as f:
+            raw_json = json.load(f)
+        print(f"Source JSON File: {source_file}")
+        print("Field Mappings:")
+        print(f"  1. Ticker Symbol: '{raw_json.get('ticker')}' -> Source field: 'ticker': \"{raw_json.get('ticker')}\"")
+        print(f"  2. Trade Direction: '{raw_json.get('direction')}' -> Source field: 'direction': \"{raw_json.get('direction')}\"")
+        print(f"  3. Entry Price: '${raw_json.get('current price')}' -> Source field: 'current price': \"{raw_json.get('current price')}\"")
+        print(f"  4. Target Price 1: '${raw_json.get('target 1')}' -> Source field: 'target 1': \"{raw_json.get('target 1')}\"")
+        print(f"  5. Stop Loss 1: '${raw_json.get('stop 1')}' -> Source field: 'stop 1': \"{raw_json.get('stop 1')}\"")
+        print(f"  6. Confidence Score: '{raw_json.get('confidence level')}%' -> Source field: 'confidence level': \"{raw_json.get('confidence level')}\"")
+        print(f"  7. Sentiment Weighting: X (30%), Groq (60%) -> Source field: 'sources weights': {raw_json.get('sources weights')}")
 
     print("\n=== Script Agent Execution Complete (Paused for Human Review) ===")
 
