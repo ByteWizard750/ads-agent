@@ -4,6 +4,46 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
 
+def format_json_stat_entry(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalizes complex proprietary JSON objects (e.g. stock/crypto signal reports)
+    into a clean, voiceover-friendly stat claim string.
+    """
+    if "claim" in item and isinstance(item["claim"], str):
+        return item
+
+    ticker = item.get("ticker") or item.get("symbol") or ""
+    title = item.get("title") or item.get("headline") or ""
+    direction = item.get("direction") or ""
+    price = item.get("current price") or item.get("price") or ""
+    target = item.get("target 1") or item.get("target") or ""
+    recommendation = item.get("Trading Recommendation") or item.get("recommendation") or ""
+
+    parts = []
+    if ticker and direction:
+        parts.append(f"Proprietary sentiment signal on {ticker}: {direction}")
+    if price and target:
+        parts.append(f"Current price ${price} targeting ${target}")
+    if title:
+        parts.append(f"({title})")
+
+    if parts:
+        formatted_claim = " — ".join(parts)
+    elif recommendation:
+        formatted_claim = str(recommendation)[:200]
+    else:
+        formatted_claim = json.dumps(item)[:200]
+
+    return {
+        "ticker": ticker,
+        "direction": direction,
+        "price": price,
+        "target": target,
+        "claim": formatted_claim,
+        "raw": item
+    }
+
+
 def parse_proprietary_data(client_data_dir: Path) -> Tuple[List[Dict[str, Any]], bool, str]:
     """
     Format-tolerant parser for client proprietary data in clients/<client_id>/data/.
@@ -41,17 +81,17 @@ def parse_proprietary_data(client_data_dir: Path) -> Tuple[List[Dict[str, Any]],
                     if isinstance(content, list):
                         for item in content:
                             if isinstance(item, dict):
-                                stats.append(item)
+                                stats.append(format_json_stat_entry(item))
                             else:
                                 stats.append({"claim": str(item)})
                     elif isinstance(content, dict):
-                        stats.append(content)
+                        stats.append(format_json_stat_entry(content))
 
             elif ext == ".csv":
                 with open(data_file, "r", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        stats.append(dict(row))
+                        stats.append(format_json_stat_entry(dict(row)))
 
             elif ext in [".txt", ".md"]:
                 with open(data_file, "r", encoding="utf-8") as f:
