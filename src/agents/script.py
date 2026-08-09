@@ -72,12 +72,12 @@ Brand Tone: {tone}
 Value Proposition: {value_prop}
 CTA: {cta}
 Market Pain Point: {top_concept.get('pain_point')}
-Proprietary Data: {stat_reference}
+Proprietary Data Stat: {stat_reference}
 
-Generate 3 distinct 30-60 second video ad scripts:
-1. Variant A (variant_a_pain_point): Hook leads with customer pain point.
-2. Variant B (variant_b_stat): Hook leads with verified historical call ("Here's a real call we made on..."). Softened confidence (e.g. modest 46% confidence). Spoken body must end cleanly at CTA. Do NOT include disclaimer text inside the voiceover script.
-3. Variant C (variant_c_solution): Hook leads with product automation solution.
+Generate 3 distinct 30-60 second video ad scripts following these STRICT rules:
+1. Variant A (variant_a_pain_point): Hook leads with customer pain point. Focus on emotional stress, FOMO, and over-trading. Do NOT cite specific stock price numbers or ticker symbols.
+2. Variant B (variant_b_stat): Exclusively holds specific price targets from Proprietary Data ({stat_reference}). MUST use historical framing ("Here's a real call we made on...") and softened confidence (e.g., "modest 46% confidence"). The spoken body MUST end cleanly at the CTA. Do NOT include disclaimer text inside the spoken voiceover script.
+3. Variant C (variant_c_solution): Hook leads with product automation solution (scanning market sentiment in 5 minutes). Focus on system benefits. Do NOT cite specific stock price numbers or ticker symbols.
 
 Return ONLY a valid JSON array of 3 objects with exact keys:
 "variant_type", "hook_text", "body_script", "duration_seconds"
@@ -100,7 +100,7 @@ Return ONLY a valid JSON array of 3 objects with exact keys:
         variants = []
         for item in parsed:
             concept_id = top_concept.get("id") if isinstance(top_concept.get("id"), str) and len(top_concept.get("id")) == 36 else None
-            variants.append({
+            variant_dict = {
                 "client_id": client_id,
                 "run_id": run_id,
                 "concept_id": concept_id,
@@ -109,7 +109,12 @@ Return ONLY a valid JSON array of 3 objects with exact keys:
                 "body_script": item["body_script"],
                 "duration_seconds": item.get("duration_seconds", 45),
                 "approval_status": "pending"
-            })
+            }
+            # Attach compliance note metadata if specific price targets or Variant B
+            if item["variant_type"] == "variant_b_stat" or "140" in item["body_script"] or "$" in item["body_script"]:
+                variant_dict["_compliance_note"] = "Financial ad scripts featuring specific price targets require compliance/legal review before public ad deployment."
+            
+            variants.append(variant_dict)
         return variants
 
     except Exception as e:
