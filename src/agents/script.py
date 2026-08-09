@@ -19,7 +19,7 @@ def insert_scripts(scripts_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not client or not scripts_data:
         return scripts_data
 
-    # Strip non-database metadata keys (e.g. _field_mapping)
+    # Strip non-database metadata keys (e.g. _field_mapping, _compliance_note)
     db_payload = []
     for s in scripts_data:
         clean = {k: v for k, v in s.items() if not k.startswith("_")}
@@ -56,13 +56,103 @@ def generate_script_variants(
         "hook_style": "Pain Point Lead"
     }
 
-    # Strict Variant B generation logic using ingested proprietary stats
+    # If OpenRouter key is missing or placeholder, use explicit fallback tagged [FALLBACK - NOT LLM GENERATED]
+    if not openrouter_key or "your-openrouter" in openrouter_key:
+        print("[SCRIPT AGENT NOTICE] OPENROUTER_API_KEY is missing or placeholder. Using fallback tagged [FALLBACK - NOT LLM GENERATED].")
+        return _fallback_script_generation(client_cfg, top_concept, has_data, data_warning, run_id, proprietary_stats)
+
+    # Call OpenRouter API
+    try:
+        print(f"[Script Agent] Calling OpenRouter LLM (google/gemini-2.5-flash) for client '{client_id}'...")
+        stat_reference = json.dumps(proprietary_stats[0]) if has_data and proprietary_stats else "No proprietary data files."
+        
+        prompt = f"""You are a world-class direct-response video ad scriptwriter and hook engineer for {client_cfg.name} ({client_cfg.niche}).
+Target Audience: {target_audience}
+Brand Tone: {tone}
+Value Proposition: {value_prop}
+CTA: {cta}
+Market Pain Point: {top_concept.get('pain_point')}
+Proprietary Data: {stat_reference}
+
+Generate 3 distinct 30-60 second video ad scripts:
+1. Variant A (variant_a_pain_point): Hook leads with customer pain point.
+2. Variant B (variant_b_stat): Hook leads with verified historical call ("Here's a real call we made on..."). Softened confidence (e.g. modest 46% confidence). Spoken body must end cleanly at CTA. Do NOT include disclaimer text inside the voiceover script.
+3. Variant C (variant_c_solution): Hook leads with product automation solution.
+
+Return ONLY a valid JSON array of 3 objects with exact keys:
+"variant_type", "hook_text", "body_script", "duration_seconds"
+"""
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=openrouter_key
+        )
+        response = client.chat.completions.create(
+            model="google/gemini-2.5-flash",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```json"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(content)
+        
+        variants = []
+        for item in parsed:
+            concept_id = top_concept.get("id") if isinstance(top_concept.get("id"), str) and len(top_concept.get("id")) == 36 else None
+            variants.append({
+                "client_id": client_id,
+                "run_id": run_id,
+                "concept_id": concept_id,
+                "variant_type": item["variant_type"],
+                "hook_text": item["hook_text"],
+                "body_script": item["body_script"],
+                "duration_seconds": item.get("duration_seconds", 45),
+                "approval_status": "pending"
+            })
+        return variants
+
+    except Exception as e:
+        print(f"[SCRIPT AGENT LLM ERROR] OpenRouter API call failed ({e}). Falling back to [FALLBACK - NOT LLM GENERATED].")
+        return _fallback_script_generation(client_cfg, top_concept, has_data, data_warning, run_id, proprietary_stats)
+
+
+def _fallback_script_generation(
+    client_cfg: ClientConfig,
+    concept: Dict[str, Any],
+    has_data: bool,
+    data_warning: str,
+    run_id: str,
+    proprietary_stats: List[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    client_id = client_cfg.id
+    concept_id = concept.get("id") if isinstance(concept.get("id"), str) and len(concept.get("id")) == 36 else None
+    cta = client_cfg.raw_config.get("scripting", {}).get("call_to_action", "Claim your free 7-day trial of CrowdWisdomTrading signals now")
+
+    # Variant A: Pain point lead
+    variant_a = {
+        "client_id": client_id,
+        "run_id": run_id,
+        "concept_id": concept_id,
+        "variant_type": "variant_a_pain_point",
+        "hook_text": "[FALLBACK - NOT LLM GENERATED] Stop letting emotional FOMO trades wipe out your hard-earned capital.",
+        "body_script": (
+            "[FALLBACK - NOT LLM GENERATED] Stop letting emotional FOMO trades wipe out your hard-earned capital. "
+            "The biggest mistake retail traders make is buying at the peak and selling in panic. "
+            f"With {client_cfg.name}, you get automated quantitative market sentiment analysis directly to your phone. "
+            "No guess work, no emotional stress — just systematic data-backed trade setups. "
+            f"{cta}!"
+        ),
+        "duration_seconds": 45,
+        "approval_status": "pending"
+    }
+
+    # Variant B: Proprietary stat lead (STRICTLY BLOCKED if has_data is False)
     if not has_data or not proprietary_stats:
         print(f"[SCRIPT AGENT BLOCK] {data_warning}")
         variant_b = {
             "client_id": client_id,
             "run_id": run_id,
-            "concept_id": top_concept.get("id"),
+            "concept_id": concept_id,
             "variant_type": "variant_b_stat",
             "hook_text": f"[BLOCKED: Missing proprietary data in clients/{client_id}/data/]",
             "body_script": (
@@ -73,7 +163,6 @@ def generate_script_variants(
             "approval_status": "pending"
         }
     else:
-        # Extract exact fields from proprietary stat entry (SNOW_2026-04-27.json)
         stat = proprietary_stats[0]
         raw = stat.get("raw", stat)
         
@@ -84,10 +173,9 @@ def generate_script_variants(
         stop_1 = raw.get("stop 1", "137.20")
         confidence = raw.get("confidence level", "46")
         
-        # Softened historical framing with compliance note tracked separately
-        hook_b = f"Here's a real call we made on {ticker}: Early social sentiment flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1}."
+        hook_b = f"[FALLBACK - NOT LLM GENERATED] Here's a real call we made on {ticker}: Early social sentiment flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1}."
         body_b = (
-            f"Here's a real call we made on {ticker}: Early social sentiment signals flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1} with stop loss at ${stop_1}. "
+            f"[FALLBACK - NOT LLM GENERATED] Here's a real call we made on {ticker}: Early social sentiment signals flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1} with stop loss at ${stop_1}. "
             f"{client_cfg.name} tracks early community sentiment shifts to surface momentum setups before major moves happen. "
             f"{cta}!"
         )
@@ -95,7 +183,7 @@ def generate_script_variants(
         variant_b = {
             "client_id": client_id,
             "run_id": run_id,
-            "concept_id": top_concept.get("id"),
+            "concept_id": concept_id,
             "variant_type": "variant_b_stat",
             "hook_text": hook_b,
             "body_script": body_b,
@@ -103,6 +191,7 @@ def generate_script_variants(
             "approval_status": "pending",
             "_compliance_note": "Financial ad scripts featuring specific price targets require compliance/legal review before public ad deployment.",
             "_field_mapping": {
+                "fallback notice": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback script generation because OPENROUTER_API_KEY is missing/placeholder.",
                 "historical framing": "Explicitly framed as a past historical call ('Here's a real call we made on SNOW')",
                 "confidence level": f"Softened to match source 46% confidence ('modest {confidence}% confidence setup')",
                 "compliance note": "Tracked separately in .agents/AGENTS.md & metadata (not spoken by Edge-TTS)",
@@ -114,33 +203,15 @@ def generate_script_variants(
             }
         }
 
-    # Variant A: Pain point lead
-    variant_a = {
-        "client_id": client_id,
-        "run_id": run_id,
-        "concept_id": top_concept.get("id"),
-        "variant_type": "variant_a_pain_point",
-        "hook_text": "Stop letting emotional FOMO trades wipe out your hard-earned capital.",
-        "body_script": (
-            "Stop letting emotional FOMO trades wipe out your hard-earned capital. "
-            "The biggest mistake retail traders make is buying at the peak and selling in panic. "
-            f"With {client_cfg.name}, you get automated quantitative market sentiment analysis directly to your phone. "
-            "No guess work, no emotional stress — just systematic data-backed trade setups. "
-            f"{cta}!"
-        ),
-        "duration_seconds": 45,
-        "approval_status": "pending"
-    }
-
     # Variant C: Product solution lead
     variant_c = {
         "client_id": client_id,
         "run_id": run_id,
-        "concept_id": top_concept.get("id"),
+        "concept_id": concept_id,
         "variant_type": "variant_c_solution",
-        "hook_text": f"Here is how {client_cfg.name} automates your market analysis in under 5 minutes a day.",
+        "hook_text": f"[FALLBACK - NOT LLM GENERATED] Here is how {client_cfg.name} automates your market analysis in under 5 minutes a day.",
         "body_script": (
-            f"Here is how {client_cfg.name} automates your market analysis in under 5 minutes a day. "
+            f"[FALLBACK - NOT LLM GENERATED] Here is how {client_cfg.name} automates your market analysis in under 5 minutes a day. "
             "Our proprietary indicators scan institutional market sentiment and highlight high-probability trade setups automatically. "
             "You get precise entry targets, stop-loss protection, and profit levels delivered straight to your dashboard. "
             f"{cta}!"
@@ -155,10 +226,6 @@ def generate_script_variants(
 def run_script_agent(client_config_path: str, run_id: str, concepts: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Main entry point for Script Agent execution node.
-    1. Parses proprietary data from clients/<client_id>/data/.
-    2. Generates 3 script variants (A, B, C) with exact field mappings and compliance disclaimer for Variant B.
-    3. Persists scripts to Supabase `scripts` table with approval_status = 'pending'.
-    4. Updates Kanban state: Writing Script -> Awaiting Approval (Human Gate).
     """
     client_dir = Path(client_config_path).parent
     client_cfg = ClientConfig.load_from_dir(client_dir)

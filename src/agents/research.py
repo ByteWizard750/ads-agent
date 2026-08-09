@@ -227,8 +227,10 @@ def _fallback_grounded_concept_extraction(
 ) -> List[Dict[str, Any]]:
     """
     Grounded fallback extraction pulling verbatim angles from distinct top-ranked ads in dataset,
-    tagging each concept with its specific source ad UUID.
+    tagging each concept explicitly as [FALLBACK - NOT LLM GENERATED].
     """
+    print("[RESEARCH AGENT WARNING] OPENROUTER_API_KEY is missing or invalid. Using fallback concept extraction tagged [FALLBACK - NOT LLM GENERATED].")
+    
     # Map advertiser name to ad UUID
     ad_by_page = {}
     for ad in top_ads:
@@ -241,7 +243,6 @@ def _fallback_grounded_concept_extraction(
     collin_uuid = [ad_by_page.get("CollinSeow.com")] if ad_by_page.get("CollinSeow.com") else []
     traders_edge_uuid = [ad_by_page.get("Preston James & Traders Edge Network")] if ad_by_page.get("Preston James & Traders Edge Network") else []
 
-    # Fallback to top distinct ad IDs if named pages missing
     all_uuids = [ad.get("id") for ad in top_ads if ad.get("id")]
     if not time_machine_uuid and len(all_uuids) > 0: time_machine_uuid = [all_uuids[0]]
     if not collin_uuid and len(all_uuids) > 1: collin_uuid = [all_uuids[1]]
@@ -251,28 +252,28 @@ def _fallback_grounded_concept_extraction(
         {
             "client_id": client_id,
             "run_id": run_id,
-            "angle_name": "Predictive Market Asymmetry (Wall Street Time Machine)",
-            "pain_point": "Retail traders lack access to institutional-grade predictive software used by hedge funds to see market moves before they happen",
-            "hook_style": "Curiosity & Asymmetry Lead",
-            "pattern_description": "Directly references 'Wall Street Has a Time Machine. Now You Do Too' from Back To The Future Trading, positioning automated tools as institutional-level leverage.",
+            "angle_name": "[FALLBACK - NOT LLM GENERATED] Predictive Market Asymmetry (Wall Street Time Machine)",
+            "pain_point": "[FALLBACK - NOT LLM GENERATED] Retail traders lack access to institutional-grade predictive software used by hedge funds",
+            "hook_style": "[FALLBACK - NOT LLM GENERATED] Curiosity & Asymmetry Lead",
+            "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References Back To The Future Trading ad copy.",
             "source_ad_ids": time_machine_uuid
         },
         {
             "client_id": client_id,
             "run_id": run_id,
-            "angle_name": "Time-Efficient Portfolio Growth (5-Minute Strategy)",
-            "pain_point": "Busy working professionals spending hours analyzing charts without clear entry and exit points",
-            "hook_style": "Efficiency & Time Savings Lead",
-            "pattern_description": "Directly leverages '1 Simple Technique To Grow Your Portfolio in just 5 minutes' from CollinSeow.com, promising rapid signal execution.",
+            "angle_name": "[FALLBACK - NOT LLM GENERATED] Time-Efficient Portfolio Growth (5-Minute Strategy)",
+            "pain_point": "[FALLBACK - NOT LLM GENERATED] Busy working professionals spending hours analyzing charts without clear entry/exit points",
+            "hook_style": "[FALLBACK - NOT LLM GENERATED] Efficiency & Time Savings Lead",
+            "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References CollinSeow.com ad copy.",
             "source_ad_ids": collin_uuid
         },
         {
             "client_id": client_id,
             "run_id": run_id,
-            "angle_name": "Weekly Income Generation vs Over-Trading",
-            "pain_point": "Traders spending excessive time actively trading stocks and options without building reliable income",
-            "hook_style": "Problem & Income Lead",
-            "pattern_description": "Directly references 'Create Weekly Paychecks — Most people are too busy trading to get rich' from Traders Edge Network.",
+            "angle_name": "[FALLBACK - NOT LLM GENERATED] Weekly Income Generation vs Over-Trading",
+            "pain_point": "[FALLBACK - NOT LLM GENERATED] Traders spending excessive time actively trading stocks/options without building reliable income",
+            "hook_style": "[FALLBACK - NOT LLM GENERATED] Problem & Income Lead",
+            "pattern_description": "[FALLBACK - NOT LLM GENERATED] Rule-based fallback extraction because OPENROUTER_API_KEY is missing/invalid. References Traders Edge Network ad copy.",
             "source_ad_ids": traders_edge_uuid
         }
     ]
