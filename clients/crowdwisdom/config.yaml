@@ -1,0 +1,46 @@
+client:
+  id: "crowdwisdom"
+  name: "CrowdWisdomTrading"
+  niche: "trading_and_fintech_education"
+
+research:
+  search_terms:
+    - "trading signals"
+    - "stock market education"
+    - "crypto trading strategy"
+    - "algorithmic trading course"
+    - "forex trading mentor"
+  competitor_pages:
+    - "TradingView"
+    - "Warrior Trading"
+    - "Investopedia"
+    - "The Trading Channel"
+  scrape_days: 30
+  max_ads_per_run: 50
+
+scripting:
+  target_audience: "Retail traders, working professionals, and investors looking for algorithmic indicators, market analysis, and systematic trading strategies"
+  tone: "Authoritative, data-backed, relatable, energetic, direct"
+  primary_value_proposition: "Data-driven trading insights and quantitative market sentiment analysis that strips emotion out of trading"
+  call_to_action: "Claim your free 7-day trial of CrowdWisdomTrading signals now"
+  target_duration_seconds: 45
+  unique_data_sources:
+    - "clients/crowdwisdom/data/"
+
+video:
+  aspect_ratio: "9:16"
+  fps: 30
+  resolution:
+    width: 1080
+    height: 1920
+  branding:
+    primary_color: "#0F172A"
+    secondary_color: "#3B82F6"
+    accent_color: "#10B981"
+    text_color: "#FFFFFF"
+    font_family: "Inter"
+  voiceover:
+    tts_engine: "edge-tts"
+    voice_name: "en-US-ChristopherNeural"
+    pitch: "+0Hz"
+    rate: "+0%"
