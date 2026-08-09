@@ -84,12 +84,12 @@ def generate_script_variants(
         stop_1 = raw.get("stop 1", "137.20")
         confidence = raw.get("confidence level", "46")
         
-        # Softened historical framing with compliance disclaimer
+        # Softened historical framing with compliance note tracked separately
         hook_b = f"Here's a real call we made on {ticker}: Early social sentiment flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1}."
         body_b = (
             f"Here's a real call we made on {ticker}: Early social sentiment signals flagged a modest {confidence}% confidence {direction} setup at ${price} targeting ${target_1} with stop loss at ${stop_1}. "
             f"{client_cfg.name} tracks early community sentiment shifts to surface momentum setups before major moves happen. "
-            f"{cta}! [DISCLAIMER: Financial ad scripts featuring specific price targets require compliance/legal review before public ad deployment.]"
+            f"{cta}!"
         )
 
         variant_b = {
@@ -101,10 +101,11 @@ def generate_script_variants(
             "body_script": body_b,
             "duration_seconds": 45,
             "approval_status": "pending",
+            "_compliance_note": "Financial ad scripts featuring specific price targets require compliance/legal review before public ad deployment.",
             "_field_mapping": {
                 "historical framing": "Explicitly framed as a past historical call ('Here's a real call we made on SNOW')",
                 "confidence level": f"Softened to match source 46% confidence ('modest {confidence}% confidence setup')",
-                "compliance disclaimer": "Added required legal review placeholder",
+                "compliance note": "Tracked separately in .agents/AGENTS.md & metadata (not spoken by Edge-TTS)",
                 "ticker": f"ticker -> '{ticker}'",
                 "direction": f"direction -> '{direction}'",
                 "current price": f"current price -> '${price}'",
