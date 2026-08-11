@@ -5,6 +5,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from src.pipeline.state import PipelineState
 from src.agents.research import run_research_agent
 from src.agents.script import run_script_agent
+from src.agents.video import run_video_agent
 
 
 def research_node(state: PipelineState) -> Dict[str, Any]:
@@ -86,34 +87,49 @@ def script_node(state: PipelineState) -> Dict[str, Any]:
 
 def video_node(state: PipelineState) -> Dict[str, Any]:
     """
-    Video Agent Node (Stub for Step 5)
-    Programmatically renders approved script into 30-60s video via Remotion + Edge-TTS.
+    Video Agent Node (Step 5)
+    Programmatically renders approved script into 30-60s video via Remotion + Edge-TTS,
+    uploads MP4 to Supabase Storage, and persists video record into `videos` table.
     Kanban Lifecycle: Rendering Video -> Completed
     """
-    client_id = state.get("client_id", "unknown")
-    approved_script_id = state.get("approved_script_id", "none")
-    print(f"--> [Node 3: Video Agent] Rendering video for approved script '{approved_script_id}'...")
+    client_id = state.get("client_id", "crowdwisdom")
+    run_id = state.get("run_id", "run_stub")
+    approved_script_id = state.get("approved_script_id")
+    config_path = f"clients/{client_id}/config.yaml"
+
+    if not approved_script_id:
+        # Fallback to approved script from state scripts if available
+        scripts = state.get("scripts", [])
+        for s in scripts:
+            if s.get("approval_status") == "approved":
+                approved_script_id = s.get("id")
+                break
+        if not approved_script_id and scripts:
+            approved_script_id = scripts[1].get("id") if len(scripts) > 1 else scripts[0].get("id")
+
+    print(f"--> [Node 3: Video Agent] Rendering vertical video for approved script '{approved_script_id}'...")
+
+    video_res = run_video_agent(
+        client_config_path=config_path,
+        run_id=run_id,
+        script_id=approved_script_id
+    )
 
     history = list(state.get("history") or [])
     history.append({
         "state": "Rendering Video",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "detail": f"Rendering video for script {approved_script_id}"
+        "detail": f"Rendering Remotion vertical video for script {approved_script_id}"
     })
     history.append({
         "state": "Completed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "detail": "Video rendered and uploaded to Supabase Storage"
+        "detail": f"Video rendered and uploaded to Supabase Storage: {video_res['public_url']}"
     })
 
     return {
         "kanban_state": "Completed",
-        "video_result": {
-            "video_id": "vid_001",
-            "script_id": approved_script_id,
-            "video_url": f"https://srsystdngccekzlmpuym.supabase.co/storage/v1/object/public/videos/{client_id}/final.mp4",
-            "duration_seconds": 45,
-        },
+        "video_result": video_res["video_record"],
         "history": history,
     }
 

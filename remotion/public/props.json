@@ -1,0 +1,17 @@
+{
+  "ticker": "SNOW",
+  "direction": "LONG",
+  "price": "$140.32",
+  "target": "$144.80",
+  "stop": "$137.20",
+  "confidence": "46%",
+  "headlineText": "Want to see how data-driven trading works in real-time?",
+  "fullScriptText": "Here\u2019s a real call we made: Our proprietary sentiment signal on SNOW indicated a LONG position when it was at $140.32, targeting $144.80. Even with a modest 46% confidence level due to limited primary data, our analysis identified strong bullish social sentiment and a supportive technical structure. This insight came from synthesizing thousands of professional traders' views across platforms, revealing where liquidity and momentum could build. This is how CrowdWisdomTrading helps you spot opportunities. Claim your free 7-day trial of CrowdWisdomTrading signals now.",
+  "voiceoverAudioUrl": "voiceover.mp3",
+  "primaryColor": "#0F172A",
+  "secondaryColor": "#3B82F6",
+  "accentColor": "#10B981",
+  "textColor": "#FFFFFF",
+  "brandName": "CrowdWisdomTrading",
+  "ctaText": "Claim your free 7-day trial of CrowdWisdomTrading signals now"
+}
