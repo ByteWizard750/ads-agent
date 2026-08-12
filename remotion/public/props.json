@@ -13,5 +13,34 @@
   "accentColor": "#10B981",
   "textColor": "#FFFFFF",
   "brandName": "CrowdWisdomTrading",
-  "ctaText": "Claim your free 7-day trial of CrowdWisdomTrading signals now"
+  "ctaText": "Claim your free 7-day trial of CrowdWisdomTrading signals now",
+  "designVariant": "option2_editorial",
+  "durationInFrames": 1223,
+  "scenes": [
+    {
+      "name": "historical_lead",
+      "startFrame": 0,
+      "endFrame": 105
+    },
+    {
+      "name": "stat_reveal",
+      "startFrame": 105,
+      "endFrame": 288
+    },
+    {
+      "name": "confidence_score",
+      "startFrame": 288,
+      "endFrame": 606
+    },
+    {
+      "name": "trader_consensus",
+      "startFrame": 606,
+      "endFrame": 858
+    },
+    {
+      "name": "cta",
+      "startFrame": 858,
+      "endFrame": 1223
+    }
+  ]
 }
