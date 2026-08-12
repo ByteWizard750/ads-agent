@@ -28,19 +28,24 @@ Todo ➔ Researching ➔ Analyzing ➔ Writing Script ➔ Awaiting Approval (Hum
 - Persists generated scripts into Supabase `scripts` table and pauses execution at the `Awaiting Approval` Kanban gate.
 
 ### 3. Video Agent
-- Programmatically renders approved scripts into 30–60 second vertical (9:16) videos using Remotion CLI + Edge-TTS voiceovers and kinetic typography.
-- Uploads rendered video assets to Supabase Storage.
+- Programmatically renders approved scripts into 30–60 second vertical (9:16) videos using Remotion CLI and React.
+- **Audio/TTS:** Uses **ElevenLabs API** (`eleven_multilingual_v2`) for natural, SSML-paused voiceovers, falling back to Edge-TTS.
+- **Visuals:** Composites real free stock footage via the **Pexels API** behind custom kinetic typography and terminal-styled data overlay cards.
+- **Syncing:** Achieves exact audio-visual syncing by matching visual scene lengths precisely to WebVTT chunk boundaries of the generated voiceover.
+- Uploads final rendered `.mp4` video assets directly to **Supabase Storage** and persists public URLs to the DB.
 
 ---
 
 ## Tech Stack
 
 - **Orchestration:** LangGraph (Python)
-- **Database & Storage:** PostgreSQL via Supabase (8 client-scoped tables)
+- **Database & Storage:** PostgreSQL + Object Storage via Supabase (8 client-scoped tables)
 - **Backend Framework:** FastAPI & Uvicorn
-- **LLM Access:** OpenRouter (Per-agent model routing)
+- **LLM Access:** OpenRouter (`google/gemini-2.5-pro` for direct script writing and research)
 - **Scraping:** Apify (`apify/facebook-ads-scraper`)
-- **Video Rendering:** Remotion (Node.js/React) + Edge-TTS
+- **Video Generation:** Remotion (React/TypeScript), Node.js, `ffmpeg`
+- **Audio TTS:** ElevenLabs API + Edge-TTS
+- **Stock Media:** Pexels API
 - **Scheduler:** APScheduler
 
 ---
@@ -70,25 +75,33 @@ ads-agent/
 │       └── data/                 # Proprietary stats (CSV/JSON/MD/TXT)
 ├── data/
 │   └── ads_sample_raw_full.json  # Raw dataset cache (862 ads)
+├── remotion/                     # Video Generation Engine (React/TS)
+│   ├── src/                      # Remotion composition layers & scenes
+│   ├── public/                   # Downloaded audio & stock footage
+│   └── package.json
 ├── scripts/
 │   ├── apply_migration.py       # SQL migration execution script
 │   ├── explore_apify_actors.py   # Apify actor search & test script
 │   ├── run_research_agent.py     # Standalone Research Agent runner
 │   ├── run_script_agent.py       # Research + Script Agent runner
-│   ├── test_pipeline_skeleton.py # LangGraph skeleton & approval test
+│   ├── test_video_agent.py       # Video generation integration test
+│   ├── render_scene_preview.py   # Quick local scene preview renderer
+│   ├── check_cached_ads.py       # Local JSON cache URL inspector
 │   └── verify_db.py              # Supabase table verification query
 ├── src/
 │   ├── config.py                 # Pydantic configuration loader
 │   ├── agents/
 │   │   ├── research.py           # Research Agent implementation
-│   │   └── script.py             # Script Agent implementation
+│   │   ├── script.py             # Script Agent implementation
+│   │   └── video.py              # Video Rendering Agent implementation
 │   ├── db/
 │   │   └── supabase.py           # Supabase REST client & helpers
 │   ├── pipeline/
 │   │   ├── state.py              # Pipeline state definition
 │   │   └── graph.py              # LangGraph 3-node stateful graph
 │   └── utils/
-│       └── data_parser.py        # Proprietary data parser
+│       ├── data_parser.py        # Proprietary data parser
+│       └── pexels.py             # Pexels API stock video downloader
 ├── supabase/
 │   └── migrations/
 │       └── 20260731000000_init_schema.sql  # Migration script
