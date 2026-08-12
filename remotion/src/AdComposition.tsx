@@ -29,37 +29,47 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
-  // Dynamic scene frame boundaries
-  const sLeadStart = scenes?.[0]?.startFrame ?? 0;
-  const sLeadEnd = scenes?.[0]?.endFrame ?? 288;
-  const sStatStart = scenes?.[1]?.startFrame ?? 288;
-  const sStatEnd = scenes?.[1]?.endFrame ?? 606;
-  const sConfStart = scenes?.[2]?.startFrame ?? 606;
-  const sConfEnd = scenes?.[2]?.endFrame ?? 858;
-  const sTraderStart = scenes?.[3]?.startFrame ?? 858;
-  const sTraderEnd = scenes?.[3]?.endFrame ?? 973;
-  const sCtaStart = scenes?.[4]?.startFrame ?? 973;
-  const sCtaEnd = scenes?.[4]?.endFrame ?? (durationInFrames || 1102);
+  // Real WebVTT audio-synced scene frame boundaries (matching real audio timing log)
+  const s1Start = scenes?.[0]?.startFrame ?? 0;
+  const s1End = scenes?.[0]?.endFrame ?? 59;
 
-  // Spring entrance animations
-  const springConfig = { damping: 14, stiffness: 120, mass: 0.8 };
-  const leadSpring = spring({ frame: frame - sLeadStart, fps, config: springConfig });
-  const statSpring = spring({ frame: frame - sStatStart, fps, config: springConfig });
-  const confSpring = spring({ frame: frame - sConfStart, fps, config: springConfig });
-  const traderSpring = spring({ frame: frame - sTraderStart, fps, config: springConfig });
-  const ctaSpring = spring({ frame: frame - sCtaStart, fps, config: springConfig });
+  const s2Start = scenes?.[1]?.startFrame ?? 74;
+  const s2End = scenes?.[1]?.endFrame ?? 370;
 
-  // Opacity interpolations across terminal scenes
-  const leadOpacity = interpolate(frame, [sLeadStart, sLeadStart + 15, sLeadEnd - 15, sLeadEnd], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const statOpacity = interpolate(frame, [sStatStart, sStatStart + 15, sStatEnd - 15, sStatEnd], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const confOpacity = interpolate(frame, [sConfStart, sConfStart + 15, sConfEnd - 15, sConfEnd], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const traderOpacity = interpolate(frame, [sTraderStart, sTraderStart + 15, sTraderEnd - 15, sTraderEnd], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const ctaOpacity = interpolate(frame, [sCtaStart, sCtaStart + 15, durationInFrames - 5, durationInFrames], [0, 1, 1, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const s3Start = scenes?.[2]?.startFrame ?? 385;
+  const s3End = scenes?.[2]?.endFrame ?? 708;
 
-  // Digital ticking confidence counter (0% -> 46%)
-  const rawConfidenceVal = parseInt(confidence.replace("%", ""), 10) || 46;
-  const currentConfidenceVal = Math.round(
-    interpolate(frame, [sConfStart + 15, sConfStart + 60], [0, rawConfidenceVal], {
+  const s4Start = scenes?.[3]?.startFrame ?? 723;
+  const s4End = scenes?.[3]?.endFrame ?? 1003;
+
+  const s5Start = scenes?.[4]?.startFrame ?? 1018;
+  const s5End = scenes?.[4]?.endFrame ?? (durationInFrames || 1266);
+
+  // Parallax motion design layers: continuous background scale and drift
+  const bgScale = 1 + (frame / (durationInFrames || 1200)) * 0.08;
+  const bgPanY = (frame / (durationInFrames || 1200)) * -40;
+  const midlayerPanY = (frame / (durationInFrames || 1200)) * -15;
+
+  // Spring physics easing curves for tactile motion
+  const springCfg = { damping: 18, stiffness: 85, mass: 1.0 };
+  const s1Spring = spring({ frame: frame - s1Start, fps, config: springCfg });
+  const s2Spring = spring({ frame: frame - s2Start, fps, config: springCfg });
+  const s3Spring = spring({ frame: frame - s3Start, fps, config: springCfg });
+  const s4Spring = spring({ frame: frame - s4Start, fps, config: springCfg });
+  const s5Spring = spring({ frame: frame - s5Start, fps, config: springCfg });
+
+  // Smooth opacity interpolations with 12-frame crossfades
+  const fade = 12;
+  const o1 = interpolate(frame, [s1Start, s1Start + fade, s1End - fade, s1End], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const o2 = interpolate(frame, [s2Start, s2Start + fade, s2End - fade, s2End], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const o3 = interpolate(frame, [s3Start, s3Start + fade, s3End - fade, s3End], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const o4 = interpolate(frame, [s4Start, s4Start + fade, s4End - fade, s4End], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const o5 = interpolate(frame, [s5Start, s5Start + fade, durationInFrames - 5, durationInFrames], [0, 1, 1, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  // Ticking confidence score (0% -> 46%) synced to Scene 3 audio start
+  const rawConfidence = parseInt(confidence.replace("%", ""), 10) || 46;
+  const currentConfidence = Math.round(
+    interpolate(frame, [s3Start + 10, s3Start + 60], [0, rawConfidence], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
@@ -74,18 +84,19 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
         overflow: "hidden",
       }}
     >
-      {/* Terminal Grid Background Lines */}
+      {/* Background Parallax Layer: Slow Continuous Zoom & Pan Grid */}
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          inset: -100,
           backgroundImage: "linear-gradient(#111827 1px, transparent 1px), linear-gradient(90deg, #111827 1px, transparent 1px)",
           backgroundSize: "40px 40px",
           opacity: 0.45,
+          transform: `scale(${bgScale}) translateY(${bgPanY}px)`,
         }}
       />
 
-      {/* Persistent Terminal Header Bar */}
+      {/* Persistent Top Terminal Status Bar (Parallax Midlayer) */}
       <div
         style={{
           position: "absolute",
@@ -99,8 +110,9 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           border: "1px solid #374151",
           borderRadius: 16,
           padding: "14px 28px",
-          backdropFilter: "blur(10px)",
+          backdropFilter: "blur(12px)",
           zIndex: 100,
+          transform: `translateY(${midlayerPanY}px)`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -110,7 +122,7 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
               height: 12,
               borderRadius: "50%",
               backgroundColor: accentColor,
-              boxShadow: `0 0 10px ${accentColor}`,
+              boxShadow: `0 0 12px ${accentColor}`,
             }}
           />
           <span style={{ fontSize: 24, fontWeight: 800, color: "#F9FAFB", letterSpacing: 0.5 }}>
@@ -123,7 +135,7 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
         </div>
       </div>
 
-      {/* SCENE 1: Historical Lead / System Alert */}
+      {/* SCENE 1: Opening Hook / Lead */}
       <div
         style={{
           position: "absolute",
@@ -133,8 +145,8 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           justifyContent: "center",
           alignItems: "center",
           padding: 60,
-          opacity: leadOpacity,
-          transform: `scale(${0.9 + leadSpring * 0.1})`,
+          opacity: o1,
+          transform: `scale(${0.9 + s1Spring * 0.1}) translateY(${(1 - s1Spring) * 30}px)`,
         }}
       >
         <div
@@ -162,20 +174,13 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
             padding: "50px 60px",
             textAlign: "center",
             maxWidth: 920,
-            boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.8)",
           }}
         >
           <div style={{ fontFamily: "monospace", fontSize: 24, color: secondaryColor, marginBottom: 20 }}>
             &gt; REAL MARKET CALL DETECTED
           </div>
-          <h1
-            style={{
-              fontSize: 64,
-              fontWeight: 900,
-              lineHeight: 1.2,
-              color: "#F9FAFB",
-            }}
-          >
+          <h1 style={{ fontSize: 64, fontWeight: 900, lineHeight: 1.2, color: "#F9FAFB" }}>
             PROPRIETARY SENTIMENT SIGNAL ON <span style={{ color: accentColor }}>{ticker}</span>
           </h1>
         </div>
@@ -191,8 +196,8 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           justifyContent: "center",
           alignItems: "center",
           padding: 60,
-          opacity: statOpacity,
-          transform: `scale(${0.85 + statSpring * 0.15})`,
+          opacity: o2,
+          transform: `scale(${0.88 + s2Spring * 0.12}) translateY(${(1 - s2Spring) * 25}px)`,
         }}
       >
         <div
@@ -257,8 +262,8 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           justifyContent: "center",
           alignItems: "center",
           padding: 60,
-          opacity: confOpacity,
-          transform: `scale(${0.9 + confSpring * 0.1})`,
+          opacity: o3,
+          transform: `scale(${0.9 + s3Spring * 0.1}) translateY(${(1 - s3Spring) * 20}px)`,
         }}
       >
         <div
@@ -288,7 +293,7 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
               margin: "15px 0",
             }}
           >
-            {currentConfidenceVal}%
+            {currentConfidence}%
           </div>
 
           <p style={{ fontSize: 28, color: "#E5E7EB", lineHeight: 1.4, margin: "20px 0" }}>
@@ -325,8 +330,8 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           justifyContent: "center",
           alignItems: "center",
           padding: 60,
-          opacity: traderOpacity,
-          transform: `scale(${0.9 + traderSpring * 0.1})`,
+          opacity: o4,
+          transform: `scale(${0.9 + s4Spring * 0.1}) translateY(${(1 - s4Spring) * 20}px)`,
         }}
       >
         <div
@@ -354,7 +359,7 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
         </div>
       </div>
 
-      {/* SCENE 5: Call to Action (CTA) / Order Execution */}
+      {/* SCENE 5: Call to Action / Order Execution */}
       <div
         style={{
           position: "absolute",
@@ -364,8 +369,8 @@ export const AdComposition: React.FC<AdCompositionProps> = ({
           justifyContent: "center",
           alignItems: "center",
           padding: 60,
-          opacity: ctaOpacity,
-          transform: `scale(${0.85 + ctaSpring * 0.15})`,
+          opacity: o5,
+          transform: `scale(${0.85 + s5Spring * 0.15}) translateY(${(1 - s5Spring) * 20}px)`,
         }}
       >
         <div
