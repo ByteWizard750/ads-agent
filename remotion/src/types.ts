@@ -23,4 +23,11 @@ export interface AdCompositionProps {
   designVariant?: "option1_stat_reveal" | "option2_editorial" | "option3_terminal";
   durationInFrames?: number;
   scenes?: SceneTiming[];
+  stockClips?: {
+    scene1?: string | null;
+    scene2?: string | null;
+    scene3?: string | null;
+    scene4?: string | null;
+    scene5?: string | null;
+  };
 }

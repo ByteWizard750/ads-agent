@@ -12,12 +12,12 @@ load_dotenv()
 
 from src.config import ClientConfig
 from src.db.supabase import get_supabase_client, update_kanban_state
+from src.utils.pexels import fetch_stock_footage_for_scenes
 
 
 def get_audio_duration(audio_path: Path) -> float:
     """
     Extracts exact duration in seconds of an audio file using ffprobe.
-    Never defaults to a hardcoded 15s.
     """
     try:
         cmd = [
@@ -40,7 +40,7 @@ def generate_elevenlabs_voiceover(
     voice_id: str = "pNInz6obpgDQGcFmaJgB"
 ) -> Path:
     """
-    Generates TTS voiceover MP3 using ElevenLabs API.
+    Generates TTS voiceover MP3 using ElevenLabs API with SSML break pauses.
     Falls back gracefully to Edge-TTS if API key is missing or fails.
     """
     api_key = os.getenv("ELEVENLABS_API_KEY")
@@ -52,7 +52,7 @@ def generate_elevenlabs_voiceover(
     if "[DISCLAIMER" in clean_text:
         clean_text = clean_text.split("[DISCLAIMER")[0].strip()
 
-    print(f"[Video Agent TTS] Calling ElevenLabs API (Voice ID: '{voice_id}')...")
+    print(f"[Video Agent TTS] Calling ElevenLabs API ('eleven_multilingual_v2', Voice ID: '{voice_id}')...")
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": api_key,
@@ -60,7 +60,7 @@ def generate_elevenlabs_voiceover(
     }
     payload = {
         "text": clean_text,
-        "model_id": "eleven_turbo_v2_5",
+        "model_id": "eleven_multilingual_v2",
         "voice_settings": {
             "stability": 0.5,
             "similarity_boost": 0.75
@@ -124,10 +124,10 @@ def parse_vtt_scene_timings(vtt_path: Path, total_duration_sec: float) -> List[D
     """
     total_frames = int(total_duration_sec * 30)
 
-    f1 = int(3.5 * 30)   # 105 frames (~3.5s)
-    f2 = int(9.6 * 30)   # 288 frames (~9.6s)
-    f3 = int(20.2 * 30)  # 606 frames (~20.2s)
-    f4 = int(28.6 * 30)  # 858 frames (~28.6s)
+    f1 = int(2.0 * 30)   # 60 frames (~2.0s)
+    f2 = int(12.3 * 30)  # 369 frames (~12.3s)
+    f3 = int(23.6 * 30)  # 708 frames (~23.6s)
+    f4 = int(33.4 * 30)  # 1002 frames (~33.4s)
 
     return [
         {"name": "historical_lead", "startFrame": 0, "endFrame": f1},
@@ -240,12 +240,12 @@ def run_video_agent(
     client_config_path: str,
     run_id: str,
     script_id: str,
-    design_variant: str = "option2_editorial"
+    design_variant: str = "option3_terminal"
 ) -> Dict[str, Any]:
     """
     Main entry point for Video Agent execution node.
-    Config-driven TTS engine (ElevenLabs or Edge-TTS), exact frame duration derivation,
-    Remotion vertical render, and Supabase Storage upload.
+    Downloads Pexels stock video clips if key exists, renders Remotion vertical video,
+    uploads MP4 to Supabase Storage, and updates Kanban state to 'Completed'.
     """
     client_dir = Path(client_config_path).parent
     client_cfg = ClientConfig.load_from_dir(client_dir)
@@ -269,11 +269,9 @@ def run_video_agent(
     audio_path = Path("remotion/public/voiceover.mp3")
     vtt_path = Path("remotion/public/voiceover.vtt")
 
-    # Generate voiceover based on config-driven engine choice
     if tts_engine == "elevenlabs":
         generated_path = generate_elevenlabs_voiceover(body_text, audio_path, voice_id=voice_id)
         if not generated_path:
-            # Fallback to Edge-TTS if ElevenLabs key missing or failed
             generate_edge_tts_voiceover(body_text, audio_path, vtt_path, voice="en-US-AndrewNeural")
     else:
         generate_edge_tts_voiceover(body_text, audio_path, vtt_path, voice=voice_name if "Neural" in voice_name else "en-US-AndrewNeural")
@@ -282,6 +280,16 @@ def run_video_agent(
     duration_seconds = get_audio_duration(audio_path)
     duration_frames = max(150, int(duration_seconds * 30))
     scenes = parse_vtt_scene_timings(vtt_path, duration_seconds)
+
+    # Fetch Pexels stock video footage for each scene if key available
+    stock_queries = {
+        "scene1": "finance city night",
+        "scene2": "stock trading chart",
+        "scene3": "keyboard typing trading",
+        "scene4": "stock market ticker",
+        "scene5": "financial district skyline"
+    }
+    stock_clips = fetch_stock_footage_for_scenes(stock_queries)
 
     # Prepare Remotion props with proper brand name casing
     branding = client_cfg.raw_config.get("video", {}).get("branding", {})
@@ -295,15 +303,16 @@ def run_video_agent(
         "headlineText": script.get("hook_text", "Here's a real call we made on SNOW"),
         "fullScriptText": body_text,
         "voiceoverAudioUrl": "voiceover.mp3",
-        "primaryColor": branding.get("primary_color", "#0F172A"),
+        "primaryColor": branding.get("primary_color", "#030712"),
         "secondaryColor": branding.get("secondary_color", "#3B82F6"),
         "accentColor": branding.get("accent_color", "#10B981"),
-        "textColor": branding.get("text_color", "#FFFFFF"),
-        "brandName": client_cfg.name,  # Proper casing: CrowdWisdomTrading
+        "textColor": branding.get("text_color", "#F9FAFB"),
+        "brandName": client_cfg.name,
         "ctaText": client_cfg.raw_config.get("scripting", {}).get("call_to_action", "Claim your free 7-day trial of CrowdWisdomTrading signals now"),
         "designVariant": design_variant,
         "durationInFrames": duration_frames,
-        "scenes": scenes
+        "scenes": scenes,
+        "stockClips": stock_clips
     }
 
     # Render video via Remotion CLI subprocess
@@ -328,6 +337,7 @@ def run_video_agent(
             "tts_engine": tts_engine,
             "voice_name": voice_name,
             "design_variant": design_variant,
+            "stock_clips_enabled": any(stock_clips.values()),
             "duration_frames": duration_frames,
             "rendered_at": datetime.now(timezone.utc).isoformat()
         }
@@ -337,7 +347,6 @@ def run_video_agent(
     persisted_video = res_video.data[0] if res_video.data else video_record
     print(f"[Video Agent] Persisted video record into Supabase `videos` table (ID: {persisted_video.get('id')}).")
 
-    # Update Kanban state to Completed
     update_kanban_state(client_cfg.id, run_id, "Completed", script_id=script_id)
     print(f"[Video Agent] Kanban state updated to 'Completed'. Pipeline execution finished successfully!")
 
