@@ -14,8 +14,8 @@
   "textColor": "#FFFFFF",
   "brandName": "CrowdWisdomTrading",
   "ctaText": "Claim your free 7-day trial of CrowdWisdomTrading signals now",
-  "designVariant": "option2_editorial",
-  "durationInFrames": 1223,
+  "designVariant": "option3_terminal",
+  "durationInFrames": 1217,
   "scenes": [
     {
       "name": "historical_lead",
@@ -40,7 +40,7 @@
     {
       "name": "cta",
       "startFrame": 858,
-      "endFrame": 1223
+      "endFrame": 1217
     }
   ]
 }

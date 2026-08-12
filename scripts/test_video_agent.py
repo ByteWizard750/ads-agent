@@ -30,7 +30,8 @@ def main():
     video_res = run_video_agent(
         client_config_path=config_path,
         run_id=run_id,
-        script_id=script_id
+        script_id=script_id,
+        design_variant="option3_terminal"
     )
 
     print("\n================ VIDEO AGENT RENDERING SUMMARY ================")
