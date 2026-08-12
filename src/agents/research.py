@@ -194,7 +194,7 @@ Return ONLY a valid JSON array of 3 objects with these exact keys:
                 api_key=openrouter_key
             )
             response = client.chat.completions.create(
-                model="google/gemini-2.5-flash",
+                model="google/gemini-2.5-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1500
