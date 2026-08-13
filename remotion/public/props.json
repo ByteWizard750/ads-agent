@@ -15,32 +15,39 @@
   "brandName": "CrowdWisdomTrading",
   "ctaText": "Claim your free 7-day trial of CrowdWisdomTrading signals now",
   "designVariant": "option3_terminal",
-  "durationInFrames": 1217,
+  "durationInFrames": 1161,
   "scenes": [
     {
       "name": "historical_lead",
       "startFrame": 0,
-      "endFrame": 105
+      "endFrame": 60
     },
     {
       "name": "stat_reveal",
-      "startFrame": 105,
-      "endFrame": 288
+      "startFrame": 60,
+      "endFrame": 369
     },
     {
       "name": "confidence_score",
-      "startFrame": 288,
-      "endFrame": 606
+      "startFrame": 369,
+      "endFrame": 708
     },
     {
       "name": "trader_consensus",
-      "startFrame": 606,
-      "endFrame": 858
+      "startFrame": 708,
+      "endFrame": 1002
     },
     {
       "name": "cta",
-      "startFrame": 858,
-      "endFrame": 1217
+      "startFrame": 1002,
+      "endFrame": 1161
     }
-  ]
+  ],
+  "stockClips": {
+    "scene1": "stock_clips/scene1.mp4",
+    "scene2": "stock_clips/scene2.mp4",
+    "scene3": "stock_clips/scene3.mp4",
+    "scene4": "stock_clips/scene4.mp4",
+    "scene5": "stock_clips/scene5.mp4"
+  }
 }

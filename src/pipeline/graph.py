@@ -122,34 +122,55 @@ def video_node(state: PipelineState) -> Dict[str, Any]:
         "detail": f"Rendering Remotion vertical video for script {approved_script_id}"
     })
     history.append({
-        "state": "Completed",
+        "state": "Awaiting Video Approval",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "detail": f"Video rendered and uploaded to Supabase Storage: {video_res['public_url']}"
     })
 
     return {
-        "kanban_state": "Completed",
+        "kanban_state": "Awaiting Video Approval",
         "video_result": video_res["video_record"],
+        "video_approval_status": "pending",
+        "history": history,
+    }
+
+def publish_node(state: PipelineState) -> Dict[str, Any]:
+    """
+    Publish Node (Step 7)
+    Executes after human approves the rendered video inline.
+    Marks the pipeline as Completed.
+    """
+    history = list(state.get("history") or [])
+    history.append({
+        "state": "Completed",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "detail": "Video approved for final publication"
+    })
+
+    return {
+        "kanban_state": "Completed",
         "history": history,
     }
 
 
 def build_pipeline_graph():
     """
-    Constructs the 3-agent stateful graph with human-in-the-loop approval checkpoint.
+    Constructs the 3-agent stateful graph with human-in-the-loop approval checkpoints.
     """
     builder = StateGraph(PipelineState)
 
     builder.add_node("research_node", research_node)
     builder.add_node("script_node", script_node)
     builder.add_node("video_node", video_node)
+    builder.add_node("publish_node", publish_node)
 
     builder.add_edge(START, "research_node")
     builder.add_edge("research_node", "script_node")
     builder.add_edge("script_node", "video_node")
-    builder.add_edge("video_node", END)
+    builder.add_edge("video_node", "publish_node")
+    builder.add_edge("publish_node", END)
 
     memory = MemorySaver()
 
-    # Pause before video_node for human approval gate
-    return builder.compile(checkpointer=memory, interrupt_before=["video_node"])
+    # Pause before video_node for Script Approval, and before publish_node for Video Approval
+    return builder.compile(checkpointer=memory, interrupt_before=["video_node", "publish_node"])

@@ -19,10 +19,13 @@ class PipelineState(TypedDict):
     concepts: List[Dict[str, Any]]
     scripts: List[Dict[str, Any]]
 
-    # Human-in-the-loop approval gate state
+    # Human-in-the-loop approval gate state (Script)
     approved_script_id: Optional[str]
     approval_status: Optional[str]  # 'pending', 'approved', 'rejected'
     rejection_reason: Optional[str]
+
+    # Human-in-the-loop approval gate state (Video)
+    video_approval_status: Optional[str] # 'pending', 'approved', 'rejected'
 
     # Video output
     video_result: Optional[Dict[str, Any]]

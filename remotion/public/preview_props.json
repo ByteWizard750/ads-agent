@@ -1,0 +1,47 @@
+{
+  "ticker": "SNOW",
+  "direction": "LONG",
+  "price": "$140.32",
+  "target": "$144.80",
+  "stop": "$137.20",
+  "confidence": "46%",
+  "headlineText": "Here's a real call we made on SNOW",
+  "voiceoverAudioUrl": "audio_parts/preview_test.mp3",
+  "primaryColor": "#030712",
+  "secondaryColor": "#3B82F6",
+  "accentColor": "#10B981",
+  "textColor": "#F9FAFB",
+  "brandName": "CrowdWisdomTrading",
+  "designVariant": "option3_terminal",
+  "durationInFrames": 1500,
+  "scenes": [
+    {
+      "name": "historical_lead",
+      "startFrame": 0,
+      "endFrame": 73
+    },
+    {
+      "name": "stat_reveal",
+      "startFrame": 74,
+      "endFrame": 370
+    },
+    {
+      "name": "confidence_score",
+      "startFrame": 371,
+      "endFrame": 708
+    },
+    {
+      "name": "trader_consensus",
+      "startFrame": 709,
+      "endFrame": 1002
+    },
+    {
+      "name": "cta",
+      "startFrame": 1003,
+      "endFrame": 1217
+    }
+  ],
+  "stockClips": {
+    "scene2": "stock_clips/scene2.mp4"
+  }
+}

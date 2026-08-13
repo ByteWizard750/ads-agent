@@ -41,7 +41,7 @@ video:
     font_family: "Inter"
   voiceover:
     tts_engine: "elevenlabs"
-    voice_name: "Adam"
-    voice_id: "pNInz6obpgDQGcFmaJgB"
+    voice_name: "Sarah"
+    voice_id: "EXAVITQu4vr4xnSDxMaL"
     pitch: "+0Hz"
     rate: "+0%"
